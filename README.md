@@ -2,6 +2,10 @@
 
 A cross-platform productivity and momentum tracking application built with React Native and Expo. The application abandons passive time-based tracking in favor of an event-driven combo progression engine and mathematical decay models.
 
+<p align="center">
+  <img src="./assets/app-screenshot.jpeg" alt="Inertial Productivity Engine Interface" width="360" />
+</p>
+
 ---
 
 ## Technical Overview
