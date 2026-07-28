@@ -1,21 +1,23 @@
 // src/screens/DashboardScreen.tsx
 // Main dashboard: Light Core orb, level badge, category cards, action drawer.
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   StatusBar,
-  Platform,
+  AppState as RNAppState,
+  AppStateStatus,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useIsFocused } from "@react-navigation/native";
 
 import { useStore } from "../store/useStore";
 import { CATEGORIES } from "../constants/categories";
 import { COLORS, TYPOGRAPHY, SPACING } from "../constants/theme";
-import { getDecayedScore } from "../engine/math";
+import { getDecayedScore, todayISO } from "../engine/math";
 import { getLevelInfo } from "../engine/levels";
 
 import { CoreVisualizer } from "../components/CoreVisualizer";
@@ -27,6 +29,9 @@ import { CATEGORY_MAP } from "../constants/categories";
 
 export const DashboardScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+  const [tick, setTick] = useState(0);
+
   const {
     categories,
     totalXP,
@@ -42,14 +47,32 @@ export const DashboardScreen: React.FC = () => {
     rehydrate();
   }, []);
 
+  // Re-calculate scores whenever app foregrounds or tab comes into focus
+  useEffect(() => {
+    const subscription = RNAppState.addEventListener("change", (nextState: AppStateStatus) => {
+      if (nextState === "active") {
+        rehydrate();
+        setTick((t) => t + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, [rehydrate]);
+
+  useEffect(() => {
+    if (isFocused) {
+      setTick((t) => t + 1);
+    }
+  }, [isFocused]);
+
   // Calculate average decayed score across all categories
+  // Included `tick` in dependencies to force fresh re-evaluation on foreground/focus
   const averageScore = useMemo(() => {
     const scores = CATEGORIES.map((meta) => {
       const state = categories[meta.key];
       return getDecayedScore(meta.key, state.lastScore, state.lastLogDate);
     });
     return scores.reduce((a, b) => a + b, 0) / scores.length;
-  }, [categories]);
+  }, [categories, tick]);
 
   const isAwake = averageScore >= 50;
   const levelInfo = getLevelInfo(totalXP);
